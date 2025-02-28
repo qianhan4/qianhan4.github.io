@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>map</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000000; /* 蓝色海洋背景 */
+        }
+        /* 设置容器样式，使其内容居中 */
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* 内容从顶部开始 */
+            height: 100vh; 
+            transition: opacity 0.5s ease-out;
+            margin: 0;
+        }
+        .hidden-content {
+        display: none;
+        }
+
+        /* 设置图片的样式 */
+        #rotating-image {
+            width: 500px; /* 你可以根据需要调整图片的大小 */
+            height: 500px;
+            animation: spin 50s linear infinite; /* 设置旋转动画 */
+            margin-top: 20px; /* 调整图片与顶部的距离 */
+        }
+        /* 定义旋转动画 */
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        /* 设置文字的样式 */
+        .welcome-text {
+            font-family: Arial, sans-serif;
+            font-size: 25px;
+            color: #ffffff;
+            text-align: center;
+            margin-top: 20px; /* 调整文字与图片的距离 */
+        }
+        .welcome-text p {
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+
+        /* 🌊 海浪背景 */
+        .wave-container {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        svg {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* 半透明渐变的雨滴 */
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1)); /* 上面白色，下面渐变消失 */
+        }
+
+        /* 🌍 地图区域 */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        /* 弹出框样式 */
+        #popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            max-width: 400px;
+            text-align: center;
+        }
+        /* 遮罩层样式 */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        /* 诗的样式 */
+        #popup p {
+            font-family: 'Georgia', serif;
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+
+        /* 链接样式 */
+        #popup a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        #popup a:hover {
+            text-decoration: underline;
+        }
+        #popup hr {
+        margin: 15px 0;
+        border: 0;
+        border-top: 1px solid #ccc;
+        }
+
+        #popup p.history {
+        font-style: italic;
+        color: #555;
+        margin-top: 10px;
+        }
+        #popup p.funfacts {
+        font-style: georgia;
+        color: #555;
+        margin-top: 10px;
+        }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+     <!-- 容器 -->
+    <div class="container" id="main-container">
+            <!-- 图片 -->
+            <img id="rotating-image" src="pie.png" alt="Rotating Pie">
+    
+            <!-- 文字 -->
+            <div class="welcome-text">
+                🌏 Welcome to Umbrella Map 🌂 <br>
+                <p>Explore all islands and find one to escape from rain 🌧🌧🌧<br>Ready? Click Anywhere to Start!</p>
+            </div>
+        </div>
+        <div class="hidden-content">
+    <div class="wave-container">
+        <!-- 第一层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave1">
+            <path fill="#ffffff" fill-opacity="1" d="M0,120L60,125C120,130,240,140,360,140C480,140,600,130,720,110C840,90,960,60,1080,70C1200,80,1320,120,1380,140L1440,160V320H0Z"></path>
+        </svg>
+        <!-- 第二层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave2">
+            <path fill="#888888" fill-opacity="0.8" d="M0,140L60,135C120,130,240,120,360,100C480,80,600,50,720,60C840,70,960,120,1080,140C1200,160,1320,160,1380,160L1440,160V320H0Z"></path>
+        </svg>
+        <!-- 第三层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave3">
+            <path fill="#eaeaea" fill-opacity="0.4" d="M0,160L60,140C120,120,240,90,360,100C480,110,600,160,720,180C840,200,960,180,1080,150C1200,120,1320,90,1380,80L1440,70V320H0Z"></path>
+        </svg>
+    </div>
+    <!-- 画布 -->
+    <canvas id="mapCanvas"></canvas>
+    <!-- 弹出框 -->
+        <div id="overlay"></div>
+    <div id="popup"> </div>
+    </div>
+    
+    <audio id="bg-music" loop>
+        <source src="rain.mp3" type="audio/mp3">
+    </audio>
+
+    <script>
+        document.body.addEventListener("click", function () {
+            // 让 container 逐渐淡出
+            document.getElementById("main-container").style.opacity = "0";
+            setTimeout(() => {
+                document.getElementById("main-container").style.display = "none";
+                document.querySelector(".hidden-content").style.display = "block";
+            }, 500); // 0.5s 动画后隐藏
+
+        });
+        // 国家数据
+        const countries = [
+            {
+                name: "Japan",
+                image: "japan.png",
+                poem: `
+                    はるか彼方の雲から地上へ稲光りが走り<br>
+                    しばらくしてゆっくりと長く雷鳴が尾をひいた<br>
+                    人間がこの世界に出現する以前から響いていた音を<br>
+                    私たちは今なお聞くことが出来る<br>
+                `,
+                link: "https://naokoishikura.blogspot.com/2014/07/a-new-translation-of-before-summer.html",
+                linkText: "夕立の前（『世間知ラズ』より 1993）",
+                author: "谷川俊太郎", 
+                history: "🇯🇵Japanese🌂Culture<br> Traditional Japanese umbrellas, or wagasa, were introduced from China during the Heian period (794–1185). Made from bamboo and washi paper, they were coated with oil for waterproofing. Wagasa were historically symbols of status, with nobility and samurai using them in formal settings. Symbolically, they are linked to protection, longevity, and auspiciousness, often appearing in weddings and festivals to ward off misfortune.",
+                funfacts: "🇯🇵Fun Facts<br>Convenience stores sell transparent plastic umbrellas so affordably that people often forget or abandon them."
+            },
+            {
+                name: "England",
+                image: "england.png",
+                poem: `
+                    The rain set early in tonight,<br>
+                    The sullen wind was soon awake,<br>
+                    It tore the elm-tops down for spite,<br>
+                    And did its worst to vex the lake:<br>
+                    I listened with heart fit to break.<br>
+                    When glided in Porphyria; straight<br>
+                    She shut the cold out and the storm,<br>
+                    And kneeled and made the cheerless grate<br>
+                `,
+                link: "https://www.poetryfoundation.org/poets/robert-browning",
+                linkText: "Porphyria's Lover",
+                author: "By Robert Browning", 
+                history: "🇬🇧British🌂Culture<br> Umbrellas in England date back to the 18th century, initially adopted as a functional accessory for protection against rain. Beyond practicality, umbrellas became symbols of social status and refinement, particularly among the upper class and professionals. By the 19th and 20th centuries, they were closely associated with the British gentleman, epitomized by figures like the bowler-hatted businessman.",
+                funfacts: "🇬🇧Fun Facts<br> Even though commuters carry compact umbrellas daily, but strong winds often render them useless."
+            },
+            {
+                name: "American",
+                image: "America.png",
+                poem: `
+                My life is cold, and dark, and dreary;<br>
+                It rains, and the wind is never weary;<br>
+                My thoughts still cling to the mouldering past,<br>
+                But the hopes of youth fall thick in the blast,<br>
+                And the days are dark and dreary.
+                `,
+                link: "https://allpoetry.com/The-Rainy-Day",
+                linkText: "The Rainy Day",
+                author: "By Henry Wadsworth Longfellow", 
+                history: "🇺🇸American🌂Culture<br> Umbrellas in America became popular in the late 18th and early 19th centuries, early American umbrellas were influenced by European designs. Culturally, umbrellas in America symbolize practicality, protection, and resilience, often appearing in literature and film as metaphors for shelter and preparedness. They are also associated with leadership and authority, as seen in political imagery and business culture.",
+                funfacts: "🇺🇸Fun Facts<br> Large golf umbrellas are popular not just on the golf course but also for everyday use!"
+            },     
+            {name: "China",
+                image: "china.png",
+                poem: `
+                撑着油纸伞，独自<br>
+                彷徨在悠长、悠长<br>
+                又寂寥的雨巷，<br>
+                我希望逢着<br>
+                一个丁香一样地<br>
+                结着愁怨的姑娘。
+                `,
+                link: "https://www.gushiwen.cn/shiwenv_82613e96f738.aspx",
+                linkText: "雨巷",
+                author: "戴望舒", 
+                history: "🇨🇳Chinese🌂Culture<br> Traditional Chinese umbrellas date back over 2,000 years to the Han Dynasty, originally crafted from bamboo and oiled paper for waterproofing. By the Tang and Song dynasties, umbrellas had become status symbols, often used in ceremonies and imperial processions. Culturally, umbrellas in China represent protection, status, and good fortune. They are used in traditional performances like opera and dragon dances. ",
+                funfacts: "🇨🇳Fun Facts<br> Don't open an umbrella indoors! it is thought to invite misfortune or disrupt harmony."
+            },      
+            {name: "Russia",
+                image: "russia.png",
+                poem: `
+                И уже отзывный гул прилива<br>
+                Слышался, когда ты нам читал,<br>
+                Дождь косил свои глаза гневливо,<br>
+                С городом ты в буйный спор вступал.<br>
+                И еще не слышанное имя<br>
+                Молнией влетело в душный зал,<br>
+                Чтобы ныне, всей страной хранимо,<br>
+                Зазвучать, как боевой сигнал.
+                `,
+                link: "https://rustih.ru/anna-axmatova-mayakovskij-v-1913-godu/",
+                linkText: "Маяковский в 1913 году",
+                author: "By Анна Ахматова", 
+                history: "🇷🇺Russian🌂Culture<br> Umbrellas were introduced to Russia in the 18th century, primarily among the nobility. Culturally, they symbolize elegance, refinement, and protection from both rain and harsh sunlight. In literature and art, they are often associated with aristocracy and romance, appearing in classic works that depict strolls through misty streets or countryside estates.",
+                funfacts: "🇷🇺Fun Facts<br> Umbrellas are more commonly used for sun protection in summer than for rain, as snow is typically handled with hats and coats instead."
+            },   
+            {name: "France",
+                image: "france.png",
+                poem: `
+                Baignait nerveusement ses ailes dans la poudre,<br>
+                Et disait, le coeur plein de son beau lac natal:<br>
+                «Eau, quand donc pleuvras-tu? quand tonneras-tu, foudre?»<br>
+                Je vois ce malheureux, mythe étrange et fatal,<br>
+
+                Vers le ciel quelquefois, comme l'homme d'Ovide,<br>
+                Vers le ciel ironique et cruellement bleu,<br>
+                Sur son cou convulsif tendant sa tête avide<br>
+                Comme s'il adressait des reproches à Dieu!
+                `,
+                link: "https://fleursdumal.org/poem/220",
+                linkText: "Fleurs du mal",
+                author: "By Charles Baudelaire", 
+                history: "🇫🇷French🌂Culture<br> Umbrellas became popular in France during the 17th centuries, By the 19th century, Parisian streets were filled with umbrellas, reflecting the city’s rainy climate and the growing accessibility of this accessory.Culturally, they symbolize sophistication, style, and romance. They are frequently depicted in art and cinema, reinforcing their association with nostalgia and love. ",
+                funfacts: "🇫🇷Fun Facts<br> Many Parisians prefer long umbrellas."
+            }, 
+            {name: "Germany",
+                image: "germany.png",
+                poem: `
+                Lauer Regen, Sommerregen<br>
+                Rauscht von Büschen, rauscht von Bäumen.<br>
+                O wie gut und voller Segen,<br>
+                Einmal wieder satt zu träumen!<br>
+
+                War so lang im Hellen draussen,<br>
+                Ungewohnt ist mir dies Wogen:<br>
+                In der eignen Seele hausen,<br>
+                Nirgends fremdwärts hingezogen.
+                `,
+                link: "https://durchleser.wordpress.com/2012/07/13/hermann-hesse-gedicht-2/",
+                linkText: "Regen",
+                author: "By Hermann Hesse", 
+                history: "🇩🇪German🌂Culture<br> Umbrellas gained popularity in Germany in the 18th century. Culturally, they symbolize reliability and preparedness, reflecting the nation’s emphasis on practicality and efficiency. They are often used especially in cities like Hamburg, which experiences frequent rainfall. Additionally, umbrellas appear in German folklore, sometimes representing magical protection or transformation. ",
+                funfacts: "🇩🇪Fun Facts<br> Sturdy storm-proof umbrellas are particularly valued."
+            }, 
+            {name: "India",
+                image: "Indian.png",
+                poem: `
+                "WE, the rustling leaves, have a voice that answers the storms,
+                but who are you so silent?"<br>
+                "I am a mere flower."
+                `,
+                link: "https://www.ibiblio.org/eldritch/rt/stray.htm",
+                linkText: "Stray Birds",
+                author: "By Rabindranath Tagore", 
+                history: "🇮🇳Indian🌂Culture<br> Umbrellas have been used in India for centuries, traditionally, large, ornate umbrellas were symbols of power and status, often seen in royal processions and religious ceremonies. Culturally, umbrellas in India symbolize protection, status, and spirituality. They are an important feature in Hindu and Buddhist rituals, often shading deities in temple processions as a mark of reverence. In daily life, umbrellas are widely used for sun protection, especially in hot and monsoon-prone regions, making them an essential accessory.",
+                funfacts: "🇮🇳Fun Facts<br> In Kerala’s Thrissur Pooram festival, grand ceremonial umbrellas are a highlight, with temples competing to display the most elaborate and colorful designs."
+            },
+            {name: "Argentina",
+                image: "argentina.png",
+                poem: `
+                Bruscamente la tarde se ha aclarado<br>
+                Porque ya cae la lluvia minuciosa.<br>
+                Cae o cayó. La lluvia es una cosa<br>
+                Que sin duda sucede en el pasado.
+                `,
+                link: "https://www.poemas-del-alma.com/la-lluvia.htm",
+                linkText: "La Lluvia",
+                author: "By Jorge Luis Borges", 
+                history: "🇦🇷Argentine🌂Culture<br> Umbrellas became common in Argentina during the late 19th, where sudden rain showers are frequent, umbrellas quickly became an essential part of urban life. Culturally, umbrellas in Argentina symbolize adaptability and urban sophistication. In tango culture, they are sometimes used as stylish props in performances, adding a touch of elegance and drama.",
+                funfacts: "🇦🇷Fun Facts<br> Many street vendors in Buenos Aires sell inexpensive umbrellas during sudden rain showers."
+            },
+            {name: "South Africa",
+                image: "southafrica.png",
+                poem: `
+                ngoba ngimamatheka njalo<br>
+                ngikhombisa nokwenama,<br>
+                ngihlabelela nemphimbo,<br>
+                nom’ ungifik’ emgodini<br>
+                ngaphansi kwezinganeko<br>
+                zamatsh’ aluhlaz’ omhlaba<br>
+                sewuthi nginjengnsika<br>
+                Yon’ engezwa nabuhlungu
+                `,
+                link: "https://www.researchgate.net/publication/281889235_In_praise_of_the_Zulu_muse_The_portrayal_of_BW_Vilakazi_in_modern_Zulu_poetry",
+                linkText: "Ezinkomponi",
+                author: "By B.W. Vilakazi", 
+                history: "🇿🇦South Africa🌂Culture<br> Umbrellas became widely used in South Africa during the colonial period. Over time, umbrellas adapted to local needs, with large, durable designs favored for sunshade in outdoor markets and daily life. While rain umbrellas are essential in cities like Cape Town, sun umbrellas are more commonly used across the country.",
+                funfacts: "🇿🇦Fun Facts<br> Brightly colored beach umbrellas are a must-have for summer."
+            },
+            // 添加更多国家...
+        ];
+        // 生成雨滴
+        function createRaindrop() {
+            const raindrop = document.createElement("div");
+            raindrop.classList.add("raindrop");
+
+            // 随机位置 & 大小
+            const startX = Math.random() * window.innerWidth;
+            const size = Math.random() * 2 + 2;  // 2px - 4px 宽度
+            raindrop.style.left = `${startX}px`;
+            raindrop.style.height = `${size * 16}px`; // 让雨滴更长
+            raindrop.style.width = `${size}px`;
+
+            document.body.appendChild(raindrop);
+
+            // 让雨滴直线掉落到屏幕底部
+            gsap.to(raindrop, {
+                duration: Math.random() * 0.7 + 0.5, // 0.8s - 1.5s 下落速度
+                y: window.innerHeight, 
+                opacity: 0.5,
+                ease: "power1.in",
+                onComplete: () => {
+                    raindrop.remove(); // 掉到海里后消失
+                }
+            });
+        }
+
+        // 不断地产生雨滴
+        setInterval(() => {
+            for (let i = 0; i < 10; i++) { // 每次生成 8 - 12 个雨滴
+                createRaindrop();
+            }
+        }, 200); // 每 150 毫秒生成一批雨滴
+
+        // 让波浪浮动
+        gsap.to(".wave1 path", { duration: 3, y: 60, repeat: -1, yoyo: true, ease: "power1.inOut" });
+        gsap.to(".wave2 path", { duration: 3.5, y: 80, repeat: -1, yoyo: true, ease: "power1.inOut" });
+        gsap.to(".wave3 path", { duration: 4, y: 100, repeat: -1, yoyo: true, ease: "power1.inOut" });
+
+        const canvas = document.getElementById("mapCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // 让 canvas 充满屏幕
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let scale = 1; // 缩放比例
+        let translateX = 0, translateY = 0;
+        let lastX, lastY;
+        let isDragging = false;
+
+        //  10 张图片
+        const islandImages = [
+            "America.png", "argentina.png", "southafrica.png", "china.png", "england.png",
+            "france.png", "germany.png", "Indian.png", "japan.png", "russia.png"
+        ];
+
+        const islands = [];
+
+        // 加载伞的图片
+        const japaneImg = new Image();
+        japaneImg.src = "japanese elements.png"; // 确保路径正确
+
+        const britisheImg = new Image();
+        britisheImg.src = "british elements.png"; // 确保路径正确
+        const americaneImg = new Image();
+        americaneImg.src = "american elements.png";       
+        const chinaeImg = new Image();
+        chinaeImg.src = "china elements.png";  
+        const russiaeImg = new Image();
+        russiaeImg.src = "russia elements.png";
+        const frencheImg = new Image();
+        frencheImg.src = "french elements.png"; 
+        const germaneImg = new Image();
+        germaneImg.src = "german elements.png";
+        const indianeImg = new Image();
+        indianeImg.src = "indian elements.png";
+        const argeneImg = new Image();
+        argeneImg.src = "argentina elements.png";
+        const sfeImg = new Image();
+        sfeImg.src = "sf elements.png";
+        // 🎯 生成岛屿（图片）位置
+        islandImages.forEach((src) => {
+            let x, y, size = 400; // 图片大小
+            do {
+                x = Math.random() * canvas.width * 1.5 - canvas.width * 0.25; 
+                y = Math.random() * canvas.height * 1.5 - canvas.height * 0.25; 
+            } while (isOverlapping(x, y, size));
+
+            const img = new Image();
+            img.src = src;
+            islands.push({ img, x, y, size });
+        });
+
+        // 检查岛屿是否重叠
+        function isOverlapping(x, y, size) {
+            return islands.some(island => {
+                const dx = island.x - x;
+                const dy = island.y - y;
+                return Math.sqrt(dx * dx + dy * dy) < size; // 岛屿距离
+            });
+        }
+
+        // 🌍 绘制地图
+        function drawMap() {
+            ctx.setTransform(scale, 0, 0, scale, translateX, translateY);
+            ctx.clearRect(-translateX / scale, -translateY / scale, canvas.width / scale, canvas.height / scale);
+
+            islands.forEach(island => {
+                ctx.drawImage(island.img, island.x, island.y, island.size, island.size);
+
+                    // 如果是日本地图，绘制伞的图片
+                    if (island.img.src.includes("japan.png")) {
+                    const japaneSize = 400
+                    const japaneX = island.x + island.size / 2 - japaneSize/2.8 // 伞的水平位置
+                    const japaneY = island.y + island.size / 2 - japaneSize /1.3; // 伞的垂直位置
+                    ctx.drawImage(japaneImg, japaneX, japaneY, japaneSize, japaneSize);
+                }
+                    // 如果是英国地图，绘制伞的图片
+                    if (island.img.src.includes("england.png")) {
+                    const britisheSize = 400
+                    const britisheX = island.x + island.size / 2 - britisheSize/2.8 // 伞的水平位置
+                    const britisheY = island.y + island.size / 2 - britisheSize /1.3; // 伞的垂直位置
+                    ctx.drawImage(britisheImg, britisheX, britisheY, britisheSize, britisheSize);
+                }
+                    if (island.img.src.includes("America.png")) {
+                    const americaneSize = 400
+                    const americaneX = island.x + island.size / 2 - americaneSize/2.1 // 伞的水平位置
+                    const americaneY = island.y + island.size / 2 - americaneSize /1.6; // 伞的垂直位置
+                    ctx.drawImage(americaneImg, americaneX, americaneY, americaneSize, americaneSize);
+                }
+                    if (island.img.src.includes("china.png")) {
+                    const chinaeSize = 400
+                    const chinaeX = island.x + island.size / 2 - chinaeSize/2.1 // 伞的水平位置
+                    const chinaeY = island.y + island.size / 2 - chinaeSize /1.6; // 伞的垂直位置
+                    ctx.drawImage(chinaeImg, chinaeX, chinaeY, chinaeSize, chinaeSize);
+                }
+                    if (island.img.src.includes("russia.png")) {
+                    const russiaeSize = 400
+                    const russiaeX = island.x + island.size / 2 - russiaeSize/2.1 // 伞的水平位置
+                    const russiaeY = island.y + island.size / 2 - russiaeSize /1.6; // 伞的垂直位置
+                    ctx.drawImage(russiaeImg, russiaeX, russiaeY, russiaeSize, russiaeSize);
+                }
+                    if (island.img.src.includes("france.png")) {
+                    const frencheSize = 400
+                    const frencheX = island.x + island.size / 2 - frencheSize/2.1 // 伞的水平位置
+                    const frencheY = island.y + island.size / 2 - frencheSize /1.8; // 伞的垂直位置
+                    ctx.drawImage(frencheImg, frencheX, frencheY, frencheSize, frencheSize);
+                }
+                if (island.img.src.includes("germany.png")) {
+                    const germaneSize = 400
+                    const germaneX = island.x + island.size / 2 - germaneSize/2.1 // 伞的水平位置
+                    const germaneY = island.y + island.size / 2 - germaneSize /1.8; // 伞的垂直位置
+                    ctx.drawImage(germaneImg, germaneX, germaneY, germaneSize, germaneSize);
+                }
+                if (island.img.src.includes("Indian.png")) {
+                    const indianeSize = 400
+                    const indianeX = island.x + island.size / 2 - indianeSize/1.7 // 伞的水平位置
+                    const indianeY = island.y + island.size / 2 - indianeSize /1.5; // 伞的垂直位置
+                    ctx.drawImage(indianeImg, indianeX, indianeY, indianeSize, indianeSize);
+                }
+                if (island.img.src.includes("argentina.png")) {
+                    const argeneSize = 400
+                    const argeneX = island.x + island.size / 2 - argeneSize/1.7 // 伞的水平位置
+                    const argeneY = island.y + island.size / 2 - argeneSize /1.5; // 伞的垂直位置
+                    ctx.drawImage(argeneImg, argeneX, argeneY, argeneSize, argeneSize);
+                }
+                if (island.img.src.includes("southafrica.png")) {
+                    const sfeSize = 400
+                    const sfeX = island.x + island.size / 2 - sfeSize/1.9 // 伞的水平位置
+                    const sfeY = island.y + island.size / 2 - sfeSize /1.5; // 伞的垂直位置
+                    ctx.drawImage(sfeImg, sfeX, sfeY, sfeSize, sfeSize);
+                }
+            });
+        }
+
+        // 🔍 滚轮缩放
+         canvas.addEventListener("wheel", (event) => {
+             event.preventDefault();
+            
+             let scaleAmount = event.deltaY * -0.001;
+             let newScale = scale + scaleAmount;
+             if (newScale < 0.5) newScale = 0.5;
+             if (newScale > 2.5) newScale = 2.5;
+
+             scale = newScale;
+             drawMap();
+         });
+
+        // ✋ 拖动地图
+        canvas.addEventListener("mousedown", (event) => {
+            isDragging = true;
+            lastX = event.clientX;
+            lastY = event.clientY;
+        });
+
+        canvas.addEventListener("mousemove", (event) => {
+            if (isDragging) {
+                let dx = event.clientX - lastX;
+                let dy = event.clientY - lastY;
+                translateX += dx;
+                translateY += dy;
+                lastX = event.clientX;
+                lastY = event.clientY;
+                drawMap();
+            }
+        });
+
+        canvas.addEventListener("mouseup", () => isDragging = false);
+        canvas.addEventListener("mouseleave", () => isDragging = false);
+
+        // 📱 触摸屏缩放支持
+        let touchDistance = null;
+
+        canvas.addEventListener("touchstart", (event) => {
+            if (event.touches.length === 2) {
+                touchDistance = Math.hypot(
+                    event.touches[0].pageX - event.touches[1].pageX,
+                    event.touches[0].pageY - event.touches[1].pageY
+                );
+            }
+        });
+
+        canvas.addEventListener("touchmove", (event) => {
+            if (event.touches.length === 2) {
+                event.preventDefault();
+
+                let newDistance = Math.hypot(
+                    event.touches[0].pageX - event.touches[1].pageX,
+                    event.touches[0].pageY - event.touches[1].pageY
+                );
+
+                if (touchDistance) {
+                    let scaleAmount = (newDistance - touchDistance) * 0.005;
+                    let newScale = scale + scaleAmount;
+
+                    if (newScale < 0.5) newScale = 0.5;
+                    if (newScale > 2.5) newScale = 2.5;
+
+                    scale = newScale;
+                }
+
+                touchDistance = newDistance;
+                drawMap();
+            }
+
+        });
+
+        canvas.addEventListener("touchend", () => touchDistance = null);
+
+        // 🔄 初始化绘制
+        window.onload = drawMap;
+        //雨声     
+        const bgMusic = document.getElementById("bg-music");
+        // 开始播放背景音乐（用户交互后）
+        document.addEventListener("click", function startMusic() {
+        bgMusic.volume = 1;
+        bgMusic.play().catch(error => console.log("Autoplay blocked:", error));
+        document.removeEventListener("click", startMusic);
+        });
+            // 弹出框逻辑
+            const popup = document.getElementById("popup");
+            const overlay = document.getElementById("overlay");
+
+            // 点击地图时显示弹出框
+        canvas.addEventListener("click", (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (event.clientX - rect.left - translateX) / scale;
+            const mouseY = (event.clientY - rect.top - translateY) / scale;
+
+            // 检查点击了哪个国家，设置点击需要更靠近岛屿中心
+            const clickedCountry = islands.find(island => {
+                const centerX = island.x + island.size / 2;
+                const centerY = island.y + island.size / 2;
+                const radius = island.size * 0.4; // 让点击范围更小，减少敏感度
+
+                const distance = Math.sqrt((mouseX - centerX) ** 2 + (mouseY - centerY) ** 2);
+                return distance <= radius; // 只有在半径内才算点击
+            });
+            if (clickedCountry) {
+                // 找到对应的国家数据
+                const countryData = countries.find(country => clickedCountry.img.src.includes(country.image));
+                if (countryData) {
+                    // 填充弹出框内容
+                    popup.innerHTML = `
+                        <p>${countryData.poem}</p>
+                        <a href="${countryData.link}" target="_blank">${countryData.linkText}</a><br>
+                        <p>${countryData.author}</p> 
+                        <hr>
+                        <p class="history">${countryData.history}</p>
+                        <hr>
+                        <p class="funfacts">${countryData.funfacts}</p>
+                    `;
+                    popup.style.display = "block";
+                    overlay.style.display = "block";
+                    bgMusic.pause();
+                }
+            }
+        });
+        // 点击遮罩层关闭弹出框
+        overlay.addEventListener("click", () => {
+            popup.style.display = "none";
+            overlay.style.display = "none";
+            bgMusic.play();
+            let fadeIn = setInterval(() => {
+        if (bgMusic.volume < 1) {
+            bgMusic.volume += 0.05; // 每次增加 0.05
+        } else {
+            bgMusic.volume = 1;
+            clearInterval(fadeIn);
+        }
+    }, 50);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>map</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #37f0fd; /* 蓝色海洋背景 */
+        }
+
+        /* 🌊 海浪背景 */
+        .wave-container {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        svg {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* 半透明渐变的雨滴 */
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1)); /* 上面白色，下面渐变消失 */
+            opacity: 1; 
+        }
+
+        /* 🌍 地图区域 */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+    <div class="wave-container">
+        <!-- 第一层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave1">
+            <path fill="#b0faff" fill-opacity="1" d="M0,120L60,125C120,130,240,140,360,140C480,140,600,130,720,110C840,90,960,60,1080,70C1200,80,1320,120,1380,140L1440,160V320H0Z"></path>
+        </svg>
+        <!-- 第二层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave2">
+            <path fill="#0ebfee" fill-opacity="0.8" d="M0,140L60,135C120,130,240,120,360,100C480,80,600,50,720,60C840,70,960,120,1080,140C1200,160,1320,160,1380,160L1440,160V320H0Z"></path>
+        </svg>
+        <!-- 第三层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave3">
+            <path fill="#3f95ff" fill-opacity="0.4" d="M0,160L60,140C120,120,240,90,360,100C480,110,600,160,720,180C840,200,960,180,1080,150C1200,120,1320,90,1380,80L1440,70V320H0Z"></path>
+        </svg>
+    </div>
+
+    <!-- 画布 -->
+    <canvas id="mapCanvas"></canvas>
+
+    <script>
+        // 生成雨滴
+        function createRaindrop() {
+            const raindrop = document.createElement("div");
+            raindrop.classList.add("raindrop");
+
+            // 随机位置 & 大小
+            const startX = Math.random() * window.innerWidth;
+            const size = Math.random() * 2 + 2;  // 2px - 4px 宽度
+            raindrop.style.left = `${startX}px`;
+            raindrop.style.height = `${size * 16}px`; // 让雨滴更长
+            raindrop.style.width = `${size}px`;
+
+            document.body.appendChild(raindrop);
+
+            // 让雨滴直线掉落到屏幕底部
+            gsap.to(raindrop, {
+                duration: Math.random() * 0.7 + 0.5, // 0.8s - 1.5s 下落速度
+                y: window.innerHeight,
+                opacity: 0.5,
+                ease: "power1.in",
+                onComplete: () => {
+                    raindrop.remove(); // 掉到海里后消失
+                }
+            });
+        }
+
+        // 不断地产生雨滴
+        setInterval(() => {
+            for (let i = 0; i < 10; i++) { // 每次生成 8 - 12 个雨滴
+                createRaindrop();
+            }
+        }, 200); // 每 150 毫秒生成一批雨滴
+
+        // 让波浪浮动
+        gsap.to(".wave1 path", { duration: 3, y: 60, repeat: -1, yoyo: true, ease: "power1.inOut" });
+        gsap.to(".wave2 path", { duration: 3.5, y: 80, repeat: -1, yoyo: true, ease: "power1.inOut" });
+        gsap.to(".wave3 path", { duration: 4, y: 100, repeat: -1, yoyo: true, ease: "power1.inOut" });
+
+        const canvas = document.getElementById("mapCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // 让 canvas 充满屏幕
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let scale = 1; // 缩放比例
+        let translateX = 0, translateY = 0;
+        let lastX, lastY;
+        let isDragging = false;
+
+        //  10 张图片
+        const islandImages = [
+            "America.png", "argentina.png", "austria.png", "china.png", "england.png",
+            "france.png", "germany.png", "Indian.png", "japan.png", "russia.png"
+        ];
+
+        const islands = [];
+
+        function isOverlapping(x, y, size) {
+            return islands.some(island => {
+                const dx = island.x - x;
+                const dy = island.y - y;
+                return Math.sqrt(dx * dx + dy * dy) < size; // 岛屿距离
+            });
+        }
+
+        // 🎯 生成岛屿（图片）位置
+        islandImages.forEach((src) => {
+            let x, y, size = 400; // 图片大小
+            do {
+                x = Math.random() * canvas.width * 1.5 - canvas.width * 0.25; 
+                y = Math.random() * canvas.height * 1.5 - canvas.height * 0.25; 
+            } while (isOverlapping(x, y, size));
+
+            const img = new Image();
+            img.src = src;
+            islands.push({ img, x, y, size });
+        });
+
+        // 🌍 绘制地图
+        function drawMap() {
+            ctx.setTransform(scale, 0, 0, scale, translateX, translateY);
+            ctx.clearRect(-translateX / scale, -translateY / scale, canvas.width / scale, canvas.height / scale);
+
+            islands.forEach(island => {
+                ctx.drawImage(island.img, island.x, island.y, island.size, island.size);
+            });
+        }
+
+        // 🔍 滚轮缩放
+        // canvas.addEventListener("wheel", (event) => {
+        //     event.preventDefault();
+            
+        //     let scaleAmount = event.deltaY * -0.001;
+        //     let newScale = scale + scaleAmount;
+        //     if (newScale < 0.5) newScale = 0.5;
+        //     if (newScale > 2.5) newScale = 2.5;
+
+        //     scale = newScale;
+        //     drawMap();
+        // });
+
+        // ✋ 拖动地图
+        canvas.addEventListener("mousedown", (event) => {
+            isDragging = true;
+            lastX = event.clientX;
+            lastY = event.clientY;
+        });
+
+        canvas.addEventListener("mousemove", (event) => {
+            if (isDragging) {
+                let dx = event.clientX - lastX;
+                let dy = event.clientY - lastY;
+                translateX += dx;
+                translateY += dy;
+                lastX = event.clientX;
+                lastY = event.clientY;
+                drawMap();
+            }
+        });
+
+        canvas.addEventListener("mouseup", () => isDragging = false);
+        canvas.addEventListener("mouseleave", () => isDragging = false);
+
+        // 📱 触摸屏缩放支持
+        let touchDistance = null;
+
+        canvas.addEventListener("touchstart", (event) => {
+            if (event.touches.length === 2) {
+                touchDistance = Math.hypot(
+                    event.touches[0].pageX - event.touches[1].pageX,
+                    event.touches[0].pageY - event.touches[1].pageY
+                );
+            }
+        });
+
+        canvas.addEventListener("touchmove", (event) => {
+            if (event.touches.length === 2) {
+                event.preventDefault();
+
+                let newDistance = Math.hypot(
+                    event.touches[0].pageX - event.touches[1].pageX,
+                    event.touches[0].pageY - event.touches[1].pageY
+                );
+
+                if (touchDistance) {
+                    let scaleAmount = (newDistance - touchDistance) * 0.005;
+                    let newScale = scale + scaleAmount;
+
+                    if (newScale < 0.5) newScale = 0.5;
+                    if (newScale > 2.5) newScale = 2.5;
+
+                    scale = newScale;
+                }
+
+                touchDistance = newDistance;
+                drawMap();
+            }
+        });
+
+        canvas.addEventListener("touchend", () => touchDistance = null);
+
+        // 🔄 初始化绘制
+        window.onload = drawMap;
+    </script>
+</body>
+</html>

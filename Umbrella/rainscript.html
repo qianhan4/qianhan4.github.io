@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>umbrella map</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #37f0fd;
+        }
+
+        .wave-container {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        svg {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* 半透明渐变的雨滴 */
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1)); /* 上面白色，下面渐变消失 */
+            opacity: 1; 
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="scriptumbrella.js"></script>
+</head>
+<body>
+
+    <div class="wave-container">
+        <!-- 第一层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave1">
+            <path fill="#b0faff" fill-opacity="1" d="M0,120L60,125C120,130,240,140,360,140C480,140,600,130,720,110C840,90,960,60,1080,70C1200,80,1320,120,1380,140L1440,160V320H0Z"></path>
+        </svg>
+        <!-- 第二层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave2">
+            <path fill="#0ebfee" fill-opacity="0.8" d="M0,140L60,135C120,130,240,120,360,100C480,80,600,50,720,60C840,70,960,120,1080,140C1200,160,1320,160,1380,160L1440,160V320H0Z"></path>
+        </svg>
+        <!-- 第三层波浪 -->
+        <svg viewBox="0 0 1440 320" class="wave wave3">
+            <path fill="#3f95ff" fill-opacity="0.4" d="M0,160L60,140C120,120,240,90,360,100C480,110,600,160,720,180C840,200,960,180,1080,150C1200,120,1320,90,1380,80L1440,70V320H0Z"></path>
+        </svg>
+    </div>
+
+    <script>
+        // 生成雨滴
+        function createRaindrop() {
+            const raindrop = document.createElement("div");
+            raindrop.classList.add("raindrop");
+
+            // 随机位置 & 大小
+            const startX = Math.random() * window.innerWidth;
+            const size = Math.random() * 2 + 2;  // 2px - 4px 宽度
+            raindrop.style.left = `${startX}px`;
+            raindrop.style.height = `${size * 16}px`; // 让雨滴更长
+            raindrop.style.width = `${size}px`;
+
+            document.body.appendChild(raindrop);
+
+            // 让雨滴直线掉落到屏幕底部
+            gsap.to(raindrop, {
+                duration: Math.random() * 0.7 + 0.5, // 0.8s - 1.5s 下落速度
+                y: window.innerHeight,
+                opacity: 0.5,
+                ease: "power1.in",
+                onComplete: () => {
+                    raindrop.remove(); // 掉到海里后消失
+                }
+            });
+        }
+
+        // 不断地产生雨滴
+        setInterval(() => {
+            for (let i = 0; i < 10; i++) { // 每次生成 8 - 12 个雨滴
+                createRaindrop();
+            }
+        }, 200); // 每 150 毫秒生成一批雨滴
+
+        // 让波浪浮动
+        gsap.to(".wave1 path", { duration: 3, y: 60, repeat: -1, yoyo: true, ease: "power1.inOut" });
+        gsap.to(".wave2 path", { duration: 3.5, y: 80, repeat: -1, yoyo: true, ease: "power1.inOut" });
+        gsap.to(".wave3 path", { duration: 4, y: 100, repeat: -1, yoyo: true, ease: "power1.inOut" });
+    </script>
+
+</body>
+</html>
